@@ -20,12 +20,12 @@ LONG_SESSION_LIFESPAN = 24 * 60
 
 @auth_router.post("/token")
 def outer(login: LoginRequest):
-    for user in user_db:
-        if login.email == user.email:
-            if ph.verify(user.hashed_password, login.password):
+    for u in user_db:
+        if login.email == u.email:
+            if ph.verify(u.hashed_password, login.password):
                 now = datetime.now(timezone.utc)
                 access_payload = {
-                    "sub": str(user.user_id),
+                    "sub": str(u.user_id),
                     "iat": int(now.timestamp()),
                     "exp": int((now + timedelta(minutes= SHORT_SESSION_LIFESPAN)).timestamp())
                 }
@@ -41,9 +41,8 @@ def outer(login: LoginRequest):
                     "refresh_token": refresh_token
                 }
             else:
-                raise InvalidAccountException
-        else:
-            InvalidAccountException  
+                raise InvalidAccountException()
+    raise InvalidAccountException()    
                 
     
 
@@ -110,16 +109,16 @@ def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
 
 @auth_router.post("/session")
 def p(login: LoginRequest):
-    for user in user_db:
-        if user.email == login.email:
-            if ph.verify(user.hashed_password, login.password):
+    for u in user_db:
+        if u.email == login.email:
+            if ph.verify(u.hashed_password, login.password):
                 session_id = secrets.token_urlsafe(32)
                 now = datetime.now(timezone.utc)
                 exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
                 exp_ts = int(exp_dt.timestamp())
                 
                 session_db[session_id] = {
-                    "user_id": user.user_id,
+                    "user_id": u.user_id,
                     "created_at": int(now.timestamp()),
                     "expires_at": exp_ts
                 }
