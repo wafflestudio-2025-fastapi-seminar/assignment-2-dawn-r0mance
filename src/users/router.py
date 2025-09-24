@@ -23,7 +23,7 @@ def create_user(request: CreateUserRequest) -> UserResponse:
     if user_db != []:
         for u in user_db:
             if u.email == request.email:
-                raise ExistedEmailException
+                raise ExistedEmailException()
     
     userid = len(user_db) + 1
     user_db.append(

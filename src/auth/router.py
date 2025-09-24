@@ -26,9 +26,9 @@ def outer(login: LoginRequest):
     for u in user_db:
         if login.email == u.email:
             try:
-                ph.VerifyMismatchError(u.hashed_password, login.password)
+                ph.verify(u.hashed_password, login.password)
             except (VerifyMismatchError, VerificationError):
-                raise InvalidAccountException
+                raise InvalidAccountException()
             except Exception:
                 raise InvalidAccountException
             now = datetime.now(timezone.utc)

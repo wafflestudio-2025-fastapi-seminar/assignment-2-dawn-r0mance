@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from src.common.custom_exception import CustomException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from tests.util import get_all_src_py_files_hash
 from src.api import api_router
@@ -18,6 +19,13 @@ def handle_request_validation_error(request, exc):
             "error_message": exc.error_message
         }
     )
+
+@app.exception_handler(RequestValidationError)
+def request_validation_handler(request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content={
+        "error_code": "ERR_001",
+        "error_msg": "MISSING VALUE"
+    })
 
 @app.get("/health")
 def health_check():
