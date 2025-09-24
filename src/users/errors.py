@@ -28,7 +28,7 @@ class TooLongBioException(CustomException):
     def __init__(self):
         super().__init__(
             status_code=422,
-            error_code="ERR_004",
+            error_code="ERR_003",
             error_message="BIO TOO LONG"
         )
 
@@ -76,6 +76,6 @@ class InvalidAccountException(CustomException):
     def __init__(self):
         super().__init__(
             status_code=401,
-            error_code="ERR_010",
-            error_message="INVALID ACCOUNT"
+            error_code="ERR_009",
+            error_message="UNAUTHENTICATED"
         )

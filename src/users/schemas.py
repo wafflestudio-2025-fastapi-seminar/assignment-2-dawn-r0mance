@@ -3,7 +3,9 @@ import re
 from pydantic import BaseModel, field_validator, EmailStr
 from fastapi import HTTPException
 
-from src.users.errors import InvalidPasswordException
+from src.users.errors import (InvalidPasswordException, 
+                            InvalidPhoneNumberException,
+                            TooLongBioException)
 
 class CreateUserRequest(BaseModel):
     name: str
@@ -16,31 +18,19 @@ class CreateUserRequest(BaseModel):
     @field_validator('password', mode='after')
     def validate_password(cls, v):
         if len(v) < 8 or len(v) > 20:
-            raise HTTPException(
-                status_code = 422,
-                error_code = "ERR_002",
-                error_msg = "INVALID PASSWORD"
-            )
+            raise InvalidPasswordException()
         return v
     
     @field_validator('phone_number', mode='after')
     def validate_phone_number(cls, v):
         num = r"^\d{3}-\d{4}-\d{4}$"
         if not re.fullmatch(num,v):
-            raise HTTPException(
-                status_code = 422,
-                error_code = "ERR_003",
-                error_msg = "INVALID PASSWORD"
-            )
+            raise InvalidPhoneNumberException()
         return v
     @field_validator('bio', mode='after')
     def validate_bio(cls, v):
         if len(v) > 500:
-            raise HTTPException(
-                status_code = 422,
-                error_code = "ERR_004",
-                error_msg = "BIO TOO LONG"
-            )
+            raise TooLongBioException()
         return v
 class UserResponse(BaseModel):
     user_id: int

@@ -3,12 +3,15 @@ from fastapi import Depends, Cookie
 from fastapi import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, VerificationError
 from datetime import datetime, timedelta, timezone
 import secrets
 from jwt import ExpiredSignatureError
+import jwt
 
 from src.common.database import blocked_token_db, session_db, user_db
 from src.auth.schemas import LoginRequest
+from src.users.errors import InvalidAccountException
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 ph = PasswordHasher()
@@ -22,26 +25,24 @@ LONG_SESSION_LIFESPAN = 24 * 60
 def outer(login: LoginRequest):
     for u in user_db:
         if login.email == u.email:
-            if ph.verify(u.hashed_password, login.password):
-                now = datetime.now(timezone.utc)
-                access_payload = {
-                    "sub": str(u.user_id),
-                    "iat": int(now.timestamp()),
-                    "exp": int((now + timedelta(minutes= SHORT_SESSION_LIFESPAN)).timestamp())
-                }
-                refresh_payload = {
-                    "sub": str(user.user_id),
-                    "iat": int(now.timestamp()),
-                    "exp": int((now + timedelta(minutes= LONG_SESSION_LIFESPAN)).timestamp())
-                }
-                access_token = jwt.encode(access_payload, secret, algorithm= "HS256")
-                refresh_token = jwt.encode(refresh_payload, secret, algorithm= "HS256")
-                return {
-                    "access_token": access_token,
-                    "refresh_token": refresh_token
-                }
-            else:
-                raise InvalidAccountException()
+            now = datetime.now(timezone.utc)
+            access_payload = {
+                "sub": str(u.user_id),
+                "iat": int(now.timestamp()),
+                "exp": int((now + timedelta(minutes= SHORT_SESSION_LIFESPAN)).timestamp())
+            }
+            refresh_payload = {
+                "sub": str(u.user_id),
+                 "iat": int(now.timestamp()),
+                "exp": int((now + timedelta(minutes= LONG_SESSION_LIFESPAN)).timestamp())
+            }
+            access_token = jwt.encode(access_payload, secret, algorithm= "HS256")
+            refresh_token = jwt.encode(refresh_payload, secret, algorithm= "HS256")
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }
+        
     raise InvalidAccountException()    
                 
     
@@ -111,29 +112,33 @@ def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
 def p(login: LoginRequest):
     for u in user_db:
         if u.email == login.email:
-            if ph.verify(u.hashed_password, login.password):
-                session_id = secrets.token_urlsafe(32)
-                now = datetime.now(timezone.utc)
-                exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
-                exp_ts = int(exp_dt.timestamp())
+            try:
+                ph.verify(u.hashed_password, login.password)
+            except (VerifyMismatchError, VerificationError):
+                raise InvalidPasswordException()
+            except Exception:
+                raise InvalidPasswordException()
                 
-                session_db[session_id] = {
-                    "user_id": u.user_id,
-                    "created_at": int(now.timestamp()),
-                    "expires_at": exp_ts
-                }
-                response = Response(status_code=200)
-                response.set_cookie(
-                    key="sid",
-                    value=session_id,
-                    max_age=LONG_SESSION_LIFESPAN * 60
-                )
+            session_id = secrets.token_urlsafe(32)
+            now = datetime.now(timezone.utc)
+            exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
+            exp_ts = int(exp_dt.timestamp())
+                
+            session_db[session_id] = {
+                "user_id": u.user_id,
+                "created_at": int(now.timestamp()),
+                "expires_at": exp_ts
+            }
+            response = Response(status_code=200)
+            response.set_cookie(
+                key="sid",
+                value=session_id,
+                max_age=LONG_SESSION_LIFESPAN * 60
+            )
 
-                return response
-            else:
-                raise InvalidAccountException
-        else:
-            raise InvalidAccountException
+            return response
+    
+    raise InvalidAccountException()
                 
 
 @auth_router.delete("/session")

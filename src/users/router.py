@@ -46,6 +46,8 @@ def create_user(request: CreateUserRequest) -> UserResponse:
         bio = request.bio
     )
 
+    
+
 @user_router.get("/me")
 def get_user_info(
     sid: str | None = Cookie(default=None),
