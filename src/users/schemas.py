@@ -23,12 +23,12 @@ class CreateUserRequest(BaseModel):
     def validate_phone_number(cls, v):
         num = r"^\d{3}-\d{4}-\d{4}$"
         if not re.fullmatch(num,v):
-            raise ValueError("INVALID PHONE NUMBER")
+            raise InvalidPhoneNumberException()
         return v
     @field_validator('bio', mode='after')
     def validate_bio(cls, v):
         if len(v) > 500:
-            raise ValueError("BIO TOO LONG")
+            raise TooLongBioException()
         return v
 class UserResponse(BaseModel):
     user_id: int

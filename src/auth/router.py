@@ -36,15 +36,25 @@ def outer(login: LoginRequest):
                 }
                 access_token = jwt.encode(access_payload, secret, algorithm= "HS256")
                 refresh_token = jwt.encode(refresh_payload, secret, algorithm= "HS256")
-                
                 return {
                     "access_token": access_token,
                     "refresh_token": refresh_token
                 }
+            else:
+                raise InvalidAccountException
+        else:
+            InvalidAccountException  
+                
     
 
 @auth_router.post("/token/refresh")
 def p(creds: HTTPAuthorizationCredentials = Depends(security)):
+    if not creds:
+        raise UnauthenticatedException()
+    
+    if creds.scheme.lower() != "bearer":
+        raise BadAuthHeaderException()
+
     old_refresh = creds.credentials.strip()
     
     try:
@@ -53,7 +63,10 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
 
     except jwt.ExpiredSignatureError:
         blocked_token_db.add(old_refresh)
-        raise ExpiredSignatureError
+        raise InvalidTokenException()
+
+    except InvalidTokenError:
+        raise InvalidTokenException()
 
     blocked_token_db.add(old_refresh)
     now = datetime.now(timezone.utc)
@@ -77,7 +90,19 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
 
 @auth_router.delete("/token")
 def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
+    if not creds:
+        raise UnauthenticatedException
+    if creds.scheme.lower() != "bearer":
+        raise BadAuthHeaderException
+    
     dead_refresh = creds.credentials.strip()
+
+    try:
+        deadref_payload = jwt.decode(dead_refresh, secret, algorithms= ["HS256"])
+        user_id = int(deadref_payload["sub"])
+
+    except InvalidTokenError:
+        raise InvalidTokenException()
     
     blocked_token_db.add(dead_refresh)
     
@@ -106,6 +131,11 @@ def p(login: LoginRequest):
                 )
 
                 return response
+            else:
+                raise InvalidAccountException
+        else:
+            raise InvalidAccountException
+                
 
 @auth_router.delete("/session")
 def rd(sid: str | None = Cookie(default=None)):

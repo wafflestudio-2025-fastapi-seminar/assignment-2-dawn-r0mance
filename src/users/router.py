@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from fastapi import HTTPException
 from fastapi import (
     APIRouter,
     Depends,
@@ -19,6 +19,14 @@ security = HTTPBearer(auto_error=False)
 
 @user_router.post("/", status_code=status.HTTP_201_CREATED)
 def create_user(request: CreateUserRequest) -> UserResponse:
+    for user in user_db:
+        if user.email == request.email:
+            raise HTTPException(
+                status_code=409,
+                error_code = "ERR_005",
+                error_msg = "MISSING VALUE"
+                )
+    
     userid = len(user_db) + 1
     user_db.append(
         user(
