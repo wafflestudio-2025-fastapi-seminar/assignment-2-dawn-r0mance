@@ -25,6 +25,12 @@ LONG_SESSION_LIFESPAN = 24 * 60
 def outer(login: LoginRequest):
     for u in user_db:
         if login.email == u.email:
+            try:
+                ph.VerifyMismatchError(u.hashed_password, login.password)
+            except (VerifyMismatchError, VerificationError):
+                raise InvalidAccountException
+            except Exception:
+                raise InvalidAccountException
             now = datetime.now(timezone.utc)
             access_payload = {
                 "sub": str(u.user_id),
@@ -56,16 +62,23 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
         raise BadAuthHeaderException()
 
     old_refresh = creds.credentials.strip()
+
+    if old_refresh in blocked_token_db:
+        raise InvalidTokenException()
     
     try:
         oldref_payload = jwt.decode(old_refresh, secret, algorithms= ["HS256"])
+        
+        if oldref_payload.get("typ") != "refresh":
+            raise InvalidTokenException()
+        
         user_id = int(oldref_payload["sub"])
 
     except jwt.ExpiredSignatureError:
         blocked_token_db.add(old_refresh)
         raise InvalidTokenException()
 
-    except InvalidTokenError:
+    except (jwt.InvalidTokenError,KeyError, ValueError, TypeError):
         raise InvalidTokenException()
 
     blocked_token_db.add(old_refresh)
@@ -91,17 +104,23 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
 @auth_router.delete("/token")
 def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
     if not creds:
-        raise UnauthenticatedException
+        raise UnauthenticatedException()
     if creds.scheme.lower() != "bearer":
-        raise BadAuthHeaderException
+        raise BadAuthHeaderException()
     
     dead_refresh = creds.credentials.strip()
 
+    if dead_refresh in blocked_token_db:
+        return Response(status_code = 204)
+    
     try:
         deadref_payload = jwt.decode(dead_refresh, secret, algorithms= ["HS256"])
+        if deadref_payload.get("typ") != "refresh":
+            raise InvalidTokenException()
+        
         user_id = int(deadref_payload["sub"])
 
-    except InvalidTokenError:
+    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
         raise InvalidTokenException()
     
     blocked_token_db.add(dead_refresh)

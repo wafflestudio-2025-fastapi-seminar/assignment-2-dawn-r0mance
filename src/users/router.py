@@ -55,21 +55,40 @@ def get_user_info(
 ):
     if sid:
         session = session_db.get(sid)
+        if not session:
+            raise UnauthenticatedException()
+
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        if session.get("expires_at") and session["expires_at"] < now_ts:
+            session_db.pop(sid,None)
+            raise UnauthenticatedException()
 
         user_id = int(session["user_id"])
+        user = next((u for u in user_db if getattr(u, "user_id", None) == user_id), None)
+        if not user:
+            raise InvalidAccountException()
+        return user 
 
-    elif creds:
-        access_token = creds.credentials.strip()
-        try:
-            payload = jwt.decode(access_token, secret, algorithms=["HS256"])
-            
-            user_id = int(payload["sub"])
-        except ExpiredSignatureError:
-            raise HTTPException
+    if creds in None or creds.scheme.lower() != "bearer":
+        raise UnauthenticatedException()
+    
+    access_token = creds.credentials.strip()
+    try:
+        payload = jwt.decode(access_token, secret, algorithms=["HS256"])
 
-        user = user_db[user_id - 1]
+        if payload.get("typ") and payload["typ"] != "access":
+            raise InvalidTokenException()    
+        user_id = int(payload["sub"])
+    except jwt.ExpiredSignatureError:
+        raise InvalidTokenException()
+    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
+        raise InvalidTokenException()
 
-        return user
+    user = next((u for u in user_db if getattr(u, "user_id", None) == user_id), None)
+    if not user:
+        raise InvalidAccountException()
+
+    return user
 
 
 
