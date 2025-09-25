@@ -1,3 +1,3 @@
-blocked_token_db = dict()
+blocked_token_db = set()
 user_db = []
 session_db = {}

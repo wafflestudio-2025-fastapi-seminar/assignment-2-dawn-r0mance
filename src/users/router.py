@@ -73,15 +73,12 @@ def get_user_info(
             raise InvalidAccountException()
         return user 
 
-    if creds in None or creds.scheme.lower() != "bearer":
+    if creds is None or creds.scheme.lower() != "bearer":
         raise UnauthenticatedException()
     
     access_token = creds.credentials.strip()
     try:
-        payload = jwt.decode(access_token, secret, algorithms=["HS256"])
-
-        if payload.get("typ") and payload["typ"] != "access":
-            raise InvalidTokenException()    
+        payload = jwt.decode(access_token, secret, algorithms=["HS256"])  
         user_id = int(payload["sub"])
     except jwt.ExpiredSignatureError:
         raise InvalidTokenException()

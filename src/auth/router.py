@@ -75,16 +75,13 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
     try:
         oldref_payload = jwt.decode(old_refresh, secret, algorithms= ["HS256"])
         
-        if oldref_payload.get("typ") != "refresh":
-            raise InvalidTokenException()
-        
         user_id = int(oldref_payload["sub"])
 
     except jwt.ExpiredSignatureError:
         blocked_token_db.add(old_refresh)
         raise InvalidTokenException()
 
-    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
+    except (jwt.InvalidTokenError,KeyError, ValueError, TypeError):
         raise InvalidTokenException()
 
     blocked_token_db.add(old_refresh)
@@ -138,9 +135,9 @@ def p(login: LoginRequest):
             try:
                 ph.verify(u.hashed_password, login.password)
             except (VerifyMismatchError, VerificationError):
-                raise InvalidPasswordException()
+                raise InvalidAccountException()
             except Exception:
-                raise InvalidPasswordException()
+                raise InvalidAccountException()
                 
             session_id = secrets.token_urlsafe(32)
             now = datetime.now(timezone.utc)
@@ -161,7 +158,7 @@ def p(login: LoginRequest):
 
             return response
     
-    raise InvalidAccountException()
+        raise InvalidAccountException()
                 
 
 @auth_router.delete("/session")
