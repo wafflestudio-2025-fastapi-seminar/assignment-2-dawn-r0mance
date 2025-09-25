@@ -73,7 +73,7 @@ def get_user_info(
                     exp_ts //= 1000
                 if exp_ts < now_ts:
                     session_db.pop(sid,None)
-                    raise UnauthenticatedException()
+                    raise InvalidSessionException()
             except (TypeError, ValueError):
                 session_db.pop(sid,None)
                 raise UnauthenticatedException()
