@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi import Depends, Cookie
+from fastapi import Depends, Cookie, Header
 from fastapi import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from argon2 import PasswordHasher
@@ -60,15 +60,26 @@ def outer(login: LoginRequest):
     
 
 @auth_router.post("/token/refresh")
-def p(creds: HTTPAuthorizationCredentials = Depends(security)):
-    if not creds:
-        raise UnauthenticatedException()
+def p(creds: HTTPAuthorizationCredentials | None = Depends(security),
+    authorization: str | None = Header(default=None)):
+    if creds is None:
+        if authorization is None:
+            raise UnauthenticatedException()
+
+        scheme, _, param = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not param.strip():
+            raise BadAuthHeaderException()
     
-    if creds.scheme.lower() != "bearer":
-        raise BadAuthHeaderException()
+        old_refresh = param.strip()
 
-    old_refresh = creds.credentials.strip()
+    else:
+        if creds.scheme.lower() != "bearer":
+            raise BadAuthHeaderException()
 
+        old_refresh = creds.credentials.strip()
+        if not old_refresh:
+            raise BadAuthHeaderException()
+    
     if old_refresh in blocked_token_db:
         raise InvalidTokenException()
     
@@ -129,38 +140,35 @@ def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
     return Response(status_code=204)
 
 @auth_router.post("/session")
-def p(login: LoginRequest):
-    
-    user = next((u for u in user_db if u.email == login.email), None)
+def p(login: LoginRequest, response: Response):
+    user = next((u for u in user_db if u.email == login.email),None)
     if not user:
-        raise InvalidAccountException()
+        raise InvalidAccountException()        
+             
+    try:
+        ph.verify(user.hashed_password, login.password)
         
-        try:
-            ph.verify(u.hashed_password, login.password)
-        except (VerifyMismatchError, VerificationError):
-                raise InvalidAccountException()
-        except Exception:
-            raise InvalidAccountException()
+    except (VerifyMismatchError, VerificationError):
+        raise InvalidAccountException()
                 
-        sid = secrets.token_urlsafe(32)
-        now = datetime.now(timezone.utc)
-        exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
-        exp_ts = int(exp_dt.timestamp())
+    sid = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
+    exp_ts = int(exp_dt.timestamp())
                 
-        session_db[sid] = {
-            "user_id": str(user.user_id),
-            "created_at": int(now.timestamp()),
-            "expires_at": exp_ts
-        }
-        response = Response(status_code=200)
-        response.set_cookie(
-            key="sid",
-            value=session_id,
-            max_age=LONG_SESSION_LIFESPAN * 60
-        )
+    session_db[sid] = {
+        "user_id": str(user.user_id),
+        "created_at": int(now.timestamp()),
+        "expires_at": exp_ts
+    }
+            
+    response.set_cookie(
+        key="sid",
+        value=sid,
+        max_age=LONG_SESSION_LIFESPAN * 60
+    )
 
-        return response
-                
+    return {"detail": "ok"}
 
 @auth_router.delete("/session")
 def rd(sid: str | None = Cookie(default=None)):

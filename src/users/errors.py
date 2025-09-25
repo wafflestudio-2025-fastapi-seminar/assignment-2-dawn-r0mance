@@ -51,7 +51,7 @@ class InvalidSessionException(CustomException):
 class BadAuthHeaderException(CustomException):
     def __init__(self):
         super().__init__(
-            status_code=401,
+            status_code=400,
             error_code="ERR_007",
             error_message="BAD AUTHORIZATION HEADER"
         )
