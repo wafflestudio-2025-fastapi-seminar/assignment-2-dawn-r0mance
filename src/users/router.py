@@ -8,7 +8,7 @@ from fastapi import (
     Header,
     status
 )
-
+import jwt
 from src.users.schemas import CreateUserRequest, UserResponse, user
 from src.common.database import blocked_token_db, session_db, user_db
 from src.users.errors import (ExistedEmailException,
@@ -20,6 +20,7 @@ from argon2 import PasswordHasher
 user_router = APIRouter(prefix="/users", tags=["users"])
 ph = PasswordHasher()
 security = HTTPBearer(auto_error=False)
+secret = "my-secret-key"
 
 @user_router.post("/", status_code=status.HTTP_201_CREATED)
 def create_user(request: CreateUserRequest) -> UserResponse:
@@ -63,7 +64,8 @@ def get_user_info(
             raise UnauthenticatedException()
 
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        if session.get("expires_at") and session["expires_at"] < now_ts:
+        exp_ts = session.get("expires_at")
+        if exp_ts and exp_ts < now_ts:
             session_db.pop(sid,None)
             raise UnauthenticatedException()
 
