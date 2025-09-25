@@ -130,35 +130,36 @@ def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
 
 @auth_router.post("/session")
 def p(login: LoginRequest):
-    for u in user_db:
-        if u.email == login.email:
-            try:
-                ph.verify(u.hashed_password, login.password)
-            except (VerifyMismatchError, VerificationError):
-                raise InvalidAccountException()
-            except Exception:
-                raise InvalidAccountException()
-                
-            session_id = secrets.token_urlsafe(32)
-            now = datetime.now(timezone.utc)
-            exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
-            exp_ts = int(exp_dt.timestamp())
-                
-            session_db[session_id] = {
-                "user_id": u.user_id,
-                "created_at": int(now.timestamp()),
-                "expires_at": exp_ts
-            }
-            response = Response(status_code=200)
-            response.set_cookie(
-                key="sid",
-                value=session_id,
-                max_age=LONG_SESSION_LIFESPAN * 60
-            )
-
-            return response
     
+    user = next((u for u in user_db if u.email == login.email), None)
+    if not user:
         raise InvalidAccountException()
+        
+        try:
+            ph.verify(u.hashed_password, login.password)
+        except (VerifyMismatchError, VerificationError):
+                raise InvalidAccountException()
+        except Exception:
+            raise InvalidAccountException()
+                
+        sid = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        exp_dt = now + timedelta(minutes=LONG_SESSION_LIFESPAN)
+        exp_ts = int(exp_dt.timestamp())
+                
+        session_db[sid] = {
+            "user_id": str(user.user_id),
+            "created_at": int(now.timestamp()),
+            "expires_at": exp_ts
+        }
+        response = Response(status_code=200)
+        response.set_cookie(
+            key="sid",
+            value=session_id,
+            max_age=LONG_SESSION_LIFESPAN * 60
+        )
+
+        return response
                 
 
 @auth_router.delete("/session")
