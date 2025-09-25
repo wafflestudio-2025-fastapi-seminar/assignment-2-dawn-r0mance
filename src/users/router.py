@@ -69,12 +69,19 @@ def get_user_info(
             session_db.pop(sid,None)
             raise UnauthenticatedException()
 
-        user_id = int(session["user_id"])
-        user = next((u for u in user_db if getattr(u, "user_id", None) == user_id), None)
+        userid = int(session["user_id"])
+        user = next((u for u in user_db if getattr(u, "user_id", None) == userid), None)
         if not user:
             raise InvalidAccountException()
-        return user 
-
+        return UserResponse(
+            user_id = userid,
+            email = user.email,
+            name = user.name,
+            phone_number = user.phone_number,
+            height = user.height,
+            bio = user.bio
+        )
+        
     if creds is None or creds.scheme.lower() != "bearer":
         raise UnauthenticatedException()
     
