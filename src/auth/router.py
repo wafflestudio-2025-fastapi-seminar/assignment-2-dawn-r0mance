@@ -165,7 +165,7 @@ def p(login: LoginRequest, response: Response):
     response.set_cookie(
         key="sid",
         value=sid,
-        max_age=LONG_SESSION_LIFESPAN * 60,
+        max_age=LONG_SESSION_LIFESPAN,
         path="/"
     )
 
