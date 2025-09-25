@@ -16,7 +16,7 @@ def handle_request_validation_error(request, exc):
         status_code=exc.status_code,
         content={
             "error_code": exc.error_code,
-            "error_message": exc.error_message
+            "error_msg": exc.error_message
         }
     )
 

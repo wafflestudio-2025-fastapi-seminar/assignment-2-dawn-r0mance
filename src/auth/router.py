@@ -11,7 +11,13 @@ import jwt
 
 from src.common.database import blocked_token_db, session_db, user_db
 from src.auth.schemas import LoginRequest
-from src.users.errors import InvalidAccountException
+from src.users.errors import (
+                            InvalidAccountException, 
+                            InvalidTokenException, 
+                            InvalidPasswordException,
+                            BadAuthHeaderException,
+                            UnauthenticatedException
+                            )
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 ph = PasswordHasher()
@@ -30,7 +36,7 @@ def outer(login: LoginRequest):
             except (VerifyMismatchError, VerificationError):
                 raise InvalidAccountException()
             except Exception:
-                raise InvalidAccountException
+                raise InvalidAccountException()
             now = datetime.now(timezone.utc)
             access_payload = {
                 "sub": str(u.user_id),
@@ -78,7 +84,7 @@ def p(creds: HTTPAuthorizationCredentials = Depends(security)):
         blocked_token_db.add(old_refresh)
         raise InvalidTokenException()
 
-    except (jwt.InvalidTokenError,KeyError, ValueError, TypeError):
+    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
         raise InvalidTokenException()
 
     blocked_token_db.add(old_refresh)
@@ -115,8 +121,6 @@ def d(creds: HTTPAuthorizationCredentials =  Depends(security)):
     
     try:
         deadref_payload = jwt.decode(dead_refresh, secret, algorithms= ["HS256"])
-        if deadref_payload.get("typ") != "refresh":
-            raise InvalidTokenException()
         
         user_id = int(deadref_payload["sub"])
 
