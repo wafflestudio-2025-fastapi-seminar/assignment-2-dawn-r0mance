@@ -15,7 +15,8 @@ from src.common.database import blocked_token_db, session_db, user_db
 from src.users.errors import (ExistedEmailException,
                             UnauthenticatedException,
                             InvalidAccountException,
-                            InvalidTokenException)
+                            InvalidTokenException,
+                            InvalidSessionException)
 from argon2 import PasswordHasher
 
 user_router = APIRouter(prefix="/users", tags=["users"])
