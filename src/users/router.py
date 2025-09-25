@@ -64,11 +64,18 @@ def get_user_info(
             raise UnauthenticatedException()
 
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        exp_ts = session.get("expires_at")
-        if exp_ts and exp_ts < now_ts:
-            session_db.pop(sid,None)
-            raise UnauthenticatedException()
-
+        exp_raw = session.get("expires_at")
+        if exp_raw is not None:
+            try:
+                exp_ts = int(exp_raw)
+                if exp_ts > 10**12:
+                    exp_ts //= 1000
+                if exp_ts < now_ts:
+                    session_db.pop(sid,None)
+                    raise UnauthenticatedException()
+            except (TypeError, ValueError):
+                session_db.pop(sid,None)
+                raise UnauthenticatedException()
         userid = int(session["user_id"])
         user = next((u for u in user_db if getattr(u, "user_id", None) == userid), None)
         if not user:
